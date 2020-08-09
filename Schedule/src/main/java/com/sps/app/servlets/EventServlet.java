@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.sps.servlets;
+package com.sps.app.servlets;
 
 import java.io.IOException;
 import javax.servlet.annotation.WebServlet;
@@ -25,119 +25,105 @@ import com.google.gson.Gson;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.Key;
+import com.google.appengine.api.datastore.KeyFactory;
+import com.google.appengine.api.datastore.KeyRange;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.SortDirection;
-import com.google.appengine.api.blobstore.BlobstoreService;
-import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
-
-import com.google.appengine.api.blobstore.BlobInfo;
-import com.google.appengine.api.blobstore.BlobInfoFactory;
-import com.google.appengine.api.blobstore.BlobKey;
-import com.google.appengine.api.images.ImagesService;
-import com.google.appengine.api.images.ImagesServiceFactory;
-import com.google.appengine.api.images.ServingUrlOptions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
-
+import java.util.Date;
+import java.util.Locale;
+import java.text.*;
+import com.sps.app.Event;
+import java.lang.*;
 
 @WebServlet("/")
-public class DataServlet extends HttpServlet {
-  
-  private class Comment {
-    private String message;
-    private long timestamp;
-    private String imgUrl;
-
-    private Comment(String message, long timestamp, String imgUrl){
-      this.message = message;
-      this.timestamp = timestamp;
-      this.imgUrl = imgUrl;
-    }
-  }
+public class EventServlet extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    List<Comment> commentList = new ArrayList<>();
-    Query query = new Query("comment").addSort("timestamp", SortDirection.DESCENDING);
+    
+    String userid = getParameter(request, "userid","");
+    if(userid == null){
+        throw new IllegalArgumentException("userid cannot be empty");
+    }
+    List<Event> eventList = new ArrayList<>();
+    Query query = new Query("event");
+    // .addSort("timestamp", SortDirection.ASCENDING);
     DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
     PreparedQuery results = datastore.prepare(query);
-    
-    for (Entity entity : results.asIterable()) {
-      String message = (String) entity.getProperty("message");
-      long timestamp = (long) entity.getProperty("timestamp");
-      String imgUrl = (String) entity.getProperty("imgUrl");
 
-      Comment comment = new Comment(message, timestamp, imgUrl);
-      commentList.add(comment);
+    for (Entity entity : results.asIterable()) {
+      if(entity.getProperty("userid") == userid){
+        String title = (String) entity.getProperty("title");
+        String startTime = (String) entity.getProperty("startTime");
+        String endTime = (String) entity.getProperty("endTime");
+        String content = (String) entity.getProperty("content");
+
+        Event event = new Event(userid, title, startTime, endTime, content);
+        eventList.add(event);
+      }
     }
-    String json = convertToJsonUsingGson(commentList);
+
+    String json = convertToJsonUsingGson(eventList);
     response.setContentType("application/json;");
     response.getWriter().println(json);
   }
     
-  private String convertToJsonUsingGson(List<Comment> commentList) {
+  private String convertToJsonUsingGson(List<Event> eventList) {
     Gson gson = new Gson();
-    String json = gson.toJson(commentList);
+    String json = gson.toJson(eventList);
     return json;
   }
     
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    String message = getParameter(request, "input", "");
-    long timestamp = System.currentTimeMillis();
-    String imgUrl = getUploadedFileUrl(request, "img_input");
 
-    Entity messageEntity = new Entity("comment");
-    messageEntity.setProperty("message", message);
-    messageEntity.setProperty("timestamp", timestamp);
-    messageEntity.setProperty("imgUrl", imgUrl);
+    String userid = getParameter(request, "userid", "");
+    String title = getParameter(request, "title", ""); 
+    String startTimeString = getParameter(request, "startTime", ""); 
+    String endTimeString = getParameter(request, "endTime", "");
+    String content = getParameter(request, "content", "");
+    
+    Event event = new Event(userid, title, startTimeString, endTimeString, content);
+
+    Entity eventEntity = new Entity("Event");
+    eventEntity.setProperty("userid", event.getUserid());
+    eventEntity.setProperty("title", event.getTitle());
+    eventEntity.setProperty("startTime", event.getStartTime());
+    eventEntity.setProperty("endTime", event.getEndTime());
+    eventEntity.setProperty("content", event.getContent());
 
     DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-    datastore.put(messageEntity);
+    datastore.put(eventEntity);
 
-    response.sendRedirect("/comment.html");
+    int id = (int) eventEntity.getKey().getId();
+
+    Gson gson = new Gson();
+    String retJson = gson.toJson(id);
+
+    response.setContentType("application/json;");
+    response.getWriter().println(retJson);
   }
+  
+  @Override
+  public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+    String userid = getParameter(request, "userid", "");
+    int eventid = Integer.parseInt(getParameter(request, "eventid", ""));
     
+    Key eventKey = KeyFactory.createKey("Event", eventid);
+    datastore.delete(eventKey);
+
+  }
   private String getParameter(HttpServletRequest request, String name, String defaultValue) {
     String value = request.getParameter(name);
     if (value == null) {
-    return defaultValue;
+      return defaultValue;
     }
     return value;
-  }
-
-  /** Returns a URL that points to the uploaded file, or null if the user didn't upload a file. */
-  private String getUploadedFileUrl(HttpServletRequest request, String formInputElementName) {
-    BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
-    Map<String, List<BlobKey>> blobs = blobstoreService.getUploads(request);
-    List<BlobKey> blobKeys = blobs.get(formInputElementName);
-
-    // User submitted form without selecting a file, so we can't get a URL. (dev server)
-    if (blobKeys == null || blobKeys.isEmpty()) {
-      return null;
-    }
-
-    // Our form only contains a single file input, so get the first index.
-    BlobKey blobKey = blobKeys.get(0);
-
-    // User submitted form without selecting a file, so we can't get a URL. (live server)
-    BlobInfo blobInfo = new BlobInfoFactory().loadBlobInfo(blobKey);
-    if (blobInfo.getSize() == 0) {
-      blobstoreService.delete(blobKey);
-      return null;
-    }
-
-    // We could check the validity of the file here, e.g. to make sure it's an image file
-    // https://stackoverflow.com/q/10779564/873165
-
-    // Use ImagesService to get a URL that points to the uploaded file.
-    ImagesService imagesService = ImagesServiceFactory.getImagesService();
-    ServingUrlOptions options = ServingUrlOptions.Builder.withBlobKey(blobKey);
-    String url = imagesService.getServingUrl(options);
-
-    
-    return url;
   }
 }
