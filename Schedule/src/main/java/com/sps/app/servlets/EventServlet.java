@@ -59,8 +59,8 @@ public class EventServlet extends HttpServlet {
     for (Entity entity : results.asIterable()) {
       if(entity.getProperty("userid") == userid){
         String title = (String) entity.getProperty("title");
-        String startTime = (String) entity.getProperty("startTime");
-        String endTime = (String) entity.getProperty("endTime");
+        Date startTime = (Date) entity.getProperty("startTime");
+        Date endTime = (Date) entity.getProperty("endTime");
         String content = (String) entity.getProperty("content");
 
         Event event = new Event(userid, title, startTime, endTime, content);
