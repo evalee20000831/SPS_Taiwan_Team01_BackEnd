@@ -189,7 +189,11 @@ public class LoginServlet extends HttpServlet {
       return true; 
     }
     // password is correct  
-    UserInfo userAccount = new UserInfo (userIdEntity, emailEntity, nameEntity); 
+    String userIdEntityString = Long.toString(userIdEntity); 
+    //Test 
+    System.out.println("userIdEntityString = " + userIdEntityString);
+     
+    UserInfo userAccount = new UserInfo (userIdEntityString, emailEntity, nameEntity); 
     // convert accountInfo to json string 
     json = convertToJson(userAccount); 
     return false; 
