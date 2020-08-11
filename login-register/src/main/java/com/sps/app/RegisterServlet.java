@@ -28,53 +28,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /* 
- * creates page for user register and has following 5 methods 
- * - doGet 
+ * creates page for user register and has following 4 methods  
  * - doPost
- * - messages
  * - checkInput
  * - checkUsername
+ * - convertToJson
  */ 
 @WebServlet("/register")
 public class RegisterServlet extends HttpServlet {
   
-  public DatastoreService datastore = DatastoreServiceFactory.getDatastoreService(); 
-  private boolean registerCheck = false;  // true if the entered username is registered already
-  private boolean inputCheck = false; // true if inputs are empty 
-
-  /**  
-   * creates the register form
-   * @param request (HttpServletRequest)
-   * @param response (HttpServletResponse) 
-  */ 
-  @Override 
-  public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    PrintWriter writeOut = response.getWriter();
-    writeOut.println("<h1>Register</h1>");
-    response.setContentType("text/html");
-    if (inputCheck){
-      messages(response, 1); 
-    }
-    else if (registerCheck){
-      messages(response, 2); 
-    } 
-    registerCheck = false; 
-    inputCheck = false; 
-    // ask for register info (Post method) 
-    writeOut.println("<form method=\"POST\" action=\"/register\">"); 
-    writeOut.println("<p>username = </p>"); 
-    writeOut.println("<input name=\"username\"/>"); 
-    writeOut.println("<p>password = </p>");
-    writeOut.println("<input name=\"password\"/>"); 
-    writeOut.println("<p>email = </p>");
-    writeOut.println("<input name=\"email\"/>"); 
-    writeOut.println("<br/>"); 
-    writeOut.println("<button>Submit</button>"); 
-    writeOut.println("</form>"); 
-    writeOut.println("<p>If you have already registered, please login</p>"); 
-    writeOut.println("<p>** You will need to login after you register!**"); 
-    writeOut.println("<p>Login <a href=/login>here</a>.</p>"); 
-  }
+  public DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();  
+  String json = null; // initialization for json 
 
   /**
    * asks for register  
@@ -84,47 +48,39 @@ public class RegisterServlet extends HttpServlet {
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException{
     String username = request.getParameter("username"); // unique
     String password = request.getParameter("password"); 
-    String email = request.getParameter("email"); // unique 
+    String email = request.getParameter("email").toLowerCase(); // unique, lowercased 
     
-    // username, password, and email cannot be empty 
-    // true if three inputs are empty 
-    inputCheck = checkInput(username, password, email); 
+    if (checkInput(username, password, email)){
+      // true if three inputs are empty 
+      System.out.println("three inputs are empty"); 
+      response.setStatus(400);
+    } else if (checkUsername(request, response, username, email)){
+      // true if username and email is registered already  
+      System.out.println("username or email already exist in database");  
+      response.setStatus(401); 
+    } else {
+      // store the username 
+      Entity taskEntity = new Entity("userInfo");
+      taskEntity.setProperty("username", username); 
+      taskEntity.setProperty("password", password); 
+      taskEntity.setProperty("email", email); 
+      datastore.put(taskEntity); 
 
-    // check if username or email already exist in database, avoiding replications
-    // true if username and email is registered already  
-    registerCheck = checkUsername(request, response, username, email); 
-
-    if (inputCheck || registerCheck){
-      System.out.println("Entered inputs are empty"); 
-      response.sendRedirect("/register"); 
-      return;  
+      // get the user id for Json 
+      Query query = new Query("userInfo").setFilter(new Query.FilterPredicate("username", Query.FilterOperator.EQUAL, username));
+      PreparedQuery results = datastore.prepare(query);
+      long userIdEntity = 0; 
+      for (Entity entity : results.asIterable()) {
+        userIdEntity = entity.getKey().getId(); // json 
+        
+      }
+      String userIdEntityString = Long.toString(userIdEntity); 
+      
+      UserInfo userAccount = new UserInfo (userIdEntityString, email, username); 
+      json = convertToJson(userAccount); 
     }
-    
-    // store the username 
-    Entity taskEntity = new Entity("userInfo");
-    taskEntity.setProperty("username", username); 
-    taskEntity.setProperty("password", password); 
-    taskEntity.setProperty("email", email); 
-    datastore.put(taskEntity); 
-    System.out.println("taskEntity is" + taskEntity); 
-
-    // go to login page after register 
-    response.sendRedirect("/login"); 
-  }
-  
-  /**
-   * outprint indication messages if entered values are invalid 
-   * @param response (HttpServletResponse)
-   * @param type (int) 1 indicates inputs are empty string; 2 indicates inputs are registered 
-  */ 
-  private void messages(HttpServletResponse response, int type) throws IOException{
-    PrintWriter writeOut = response.getWriter();
-    if (type == 1){
-      writeOut.println("<p>username, password, and email cannot be empty</p>"); 
-    } else if (type == 2){
-      writeOut.println("<p>The username or email has already been registered</p>"); 
-      writeOut.println("<p>Please try another username/email or press 'login'</p>"); 
-    }
+    response.setContentType("application/json;");
+    response.getWriter().println(json); 
   }
 
   /**
@@ -134,6 +90,9 @@ public class RegisterServlet extends HttpServlet {
    * @param email (String) entered email 
   */ 
   private boolean checkInput(String username, String password, String email){
+    UserInfo userAccount = new UserInfo (null, null, null); // userIdEntityString, emailEntity, nameEntity
+    json = convertToJson(userAccount); // will be reassigned if not equal to null 
+
     if (username.equals("")||username == null){
       return true; 
     } else if (password.equals("")||password == null){
@@ -141,7 +100,6 @@ public class RegisterServlet extends HttpServlet {
     } else if (email.equals("")||email == null){
       return true;
     }
-    // three inputs are neither null nor empty string 
     return false; 
   }
 
@@ -158,22 +116,15 @@ public class RegisterServlet extends HttpServlet {
     CompositeFilter nameAndGmailFliter = CompositeFilterOperator.or(usernameFliter, emailFliter);
     Query query = new Query("userInfo").setFilter(nameAndGmailFliter); 
     PreparedQuery results = datastore.prepare(query);
-    
-    // TEST 
-    System.out.println("At checkUsername R username= " + username); 
-    System.out.println("At checkUsername R username= " + email); 
-    System.out.println("At checkUsername R results= " + results); 
 
     String nameEntity = null; 
     String emailEntity = null; 
+    long userIdEntity = 0; // json
 
     for (Entity entity : results.asIterable()) {
-      String name = (String) entity.getProperty("username");
-      String emaile = (String) entity.getProperty("email");
-      nameEntity = name; 
-      emailEntity = emaile; 
-      // TEST 
-      System.out.println("At checkUsername R entity= " + entity);
+      nameEntity = (String) entity.getProperty("username");
+      emailEntity = (String) entity.getProperty("email");
+      userIdEntity = entity.getKey().getId(); // json 
     }
     // entities contain values in database 
     if ((nameEntity == null)|(emailEntity == null)){
@@ -183,8 +134,23 @@ public class RegisterServlet extends HttpServlet {
     }
     // registered 
     System.out.println("Registered"); 
+    // For testing (Joey) 
+    String userIdEntityString = Long.toString(userIdEntity); 
+    UserInfo userAccount = new UserInfo ("userid already exists", emailEntity, nameEntity); 
+    json = convertToJson(userAccount);
     return true; 
   }
+
+    /** 
+   * Converts a UserInfo into a JSON string using the Gson library. Note: We first added
+   * the Gson library dependency to pom.xml.
+   * @param userInfo (UserInfo) user information convert into json 
+   */
+  private String convertToJson(UserInfo userInfo) {
+    Gson gson = new Gson();
+    String json = gson.toJson(userInfo);
+    return json;
+  } 
 }
 
 

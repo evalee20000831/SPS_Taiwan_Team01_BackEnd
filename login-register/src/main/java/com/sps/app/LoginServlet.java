@@ -29,51 +29,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /*
- * creates page for user login and has following 7 methods 
- * - doGet
- * - doPost
- * - messageAfterLogin
+ * creates page for user login and has following 4 methods 
+ * - doPost 
  * - checkExistUser
- * - getUsername
- * - messageForPasswordError
+ * - getUsername 
  * - convertToJson
  */ 
 @WebServlet("/login")
 public class LoginServlet extends HttpServlet {
   private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService(); 
-  private boolean passwordCheck = false; 
-  // initialization for json 
-  String json = null; 
-
-  /**  
-   * creates the login form
-   * @param request (HttpServletRequest)
-   * @param response (HttpServletResponse) 
-  */ 
-  @Override 
-  public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    PrintWriter writeOut = response.getWriter(); 
-    // create the form for login 
-    writeOut.println("<h1>Home</h1>");
-    response.setContentType("text/html");
-
-    // check correctness of password 
-    if (passwordCheck == true){
-      messageForPasswordError(response); 
-    }
-    passwordCheck = false; 
-
-    // ask for login info (Post method) 
-    writeOut.println("<form method=\"POST\" action=\"/login\">");
-    writeOut.println("<p>username = </p>"); 
-    writeOut.println("<input name=\"username\"/>"); // username 
-    writeOut.println("<p>password = </p>");
-    writeOut.println("<input name=\"password\"/>"); // password 
-    writeOut.println("<br/>");
-    writeOut.println("<button>Submit</button>");
-    writeOut.println("</form>"); 
-    writeOut.println("<p>Register <a href=/register>here</a>.</p>");
-  }
+  String json = null; // initialization for json 
   
   /**
    * ask user to login 
@@ -85,38 +50,23 @@ public class LoginServlet extends HttpServlet {
     String username = request.getParameter("username"); // request for username 
     String password = request.getParameter("password"); // request for password 
     
-    // TEST: System.out.println("At doPost Your username is " + username); 
-    // TEST: System.out.println("At doPost Your username is " + password); 
-
     if (checkExistUser(request, username)){
       // username cannot find in database  
-      response.sendRedirect("/register"); 
+      System.out.println("User does not exist"); 
+      // 404 indicates user not found 
+      response.setStatus(404); 
+      
     } else if (getUsername(request, username, password)){
       // if password is incorrect 
       System.out.println("PasswordError"); 
-      passwordCheck = true; 
-      response.sendRedirect("/login"); 
+      // 400 indicates the request sent by the client was syntactically incorrect.
+      response.setStatus(401); 
     }
-    
-    // TEST: messageAfterLogin(response, username);
-    // TEST: will need to remove "response.setContentType("application/json;"); 
-    
+
     // login successfully  
     // Send the JSON as the response 
     response.setContentType("application/json;");
     response.getWriter().println(json); 
-  }
-
-  /**
-   * (NOT USED)supportive testing method - puts message to user after login 
-   * @param response (HttpServletResponse)
-   * @param username (String) login username 
-  */ 
-  private void messageAfterLogin (HttpServletResponse response, String username) throws IOException {
-    PrintWriter writeOut = response.getWriter(); 
-    response.setContentType("text/html");
-    writeOut.println("<p>You have login! " + username + "</p>");
-    writeOut.println("<p>Please logout <a href=/login>here</a>.</p>");
   }
 
   /**
@@ -125,13 +75,10 @@ public class LoginServlet extends HttpServlet {
    * @param username (String) entered username 
    * @return (boolean) true if the user does not exist; false if the user does exist  
   */ 
-  private boolean checkExistUser (HttpServletRequest request, String username){
+  private boolean checkExistUser (HttpServletRequest request, String username){ 
     Filter usernameFliter = new Query.FilterPredicate ("username", Query.FilterOperator.EQUAL, username);
     Query query = new Query("userInfo").setFilter(usernameFliter); 
     PreparedQuery results = datastore.prepare(query);
-
-    //TEST 
-    System.out.println("At getUsername username= " + username); 
 
     String nameEntity = null; 
 
@@ -139,6 +86,9 @@ public class LoginServlet extends HttpServlet {
       nameEntity = (String) entity.getProperty("username");
     }
     if (nameEntity == null) {
+      // Testing (for Jeoy) 
+      UserInfo userAccount = new UserInfo (null, null, "Username does not exist"); 
+      json = convertToJson(userAccount);
       return true; 
     } 
     return false; 
@@ -158,15 +108,10 @@ public class LoginServlet extends HttpServlet {
     CompositeFilter nameAndPasswordFliter = CompositeFilterOperator.and(usernameFliter, passwordFliter);
     Query query = new Query("userInfo").setFilter(nameAndPasswordFliter); 
     PreparedQuery results = datastore.prepare(query);
-    
-    //TEST 
-    System.out.println("At getUsername username= " + username); 
-    System.out.println("At getUsername username= " + password); 
-    System.out.println("At getUsername L results= " + results); 
 
     String nameEntity = null; 
     String passwordEntity = null; 
-    long userIdEntity = 0; // json // can only do type long
+    long userIdEntity = 0; // json 
     String emailEntity = null; // json
 
     for (Entity entity : results.asIterable()) {
@@ -177,35 +122,23 @@ public class LoginServlet extends HttpServlet {
       // add to collection only when password and username are checked (below if-else)
       userIdEntity = entity.getKey().getId(); 
       emailEntity = (String) entity.getProperty("email"); 
-
-      // TEST 
-      System.out.println("At getUsername L entity= " + entity);
-      System.out.println("userIdEntity = " + userIdEntity); 
     }
 
     // nothing will be given if entity does not match to anything 
     if (passwordEntity == null){
       // given password does not match the password in database 
+      // Testing for Joey 
+      UserInfo userAccount = new UserInfo ("userId exists", "email exists", "username exists"); 
+      json = convertToJson(userAccount); 
       return true; 
     }
     // password is correct  
     String userIdEntityString = Long.toString(userIdEntity); 
-    //Test 
-    System.out.println("userIdEntityString = " + userIdEntityString);
      
     UserInfo userAccount = new UserInfo (userIdEntityString, emailEntity, nameEntity); 
     // convert accountInfo to json string 
     json = convertToJson(userAccount); 
     return false; 
-  }
-
-  /**
-   * prints messages to page when the given password does not match the password in database 
-   * @param response (HttpServletResponse) 
-  */ 
-  private void messageForPasswordError(HttpServletResponse response) throws IOException{
-    PrintWriter writeOut = response.getWriter();
-    writeOut.println("<p>Password does not match the username</p>"); 
   }
 
   /** 
