@@ -46,24 +46,26 @@ public class EventServlet extends HttpServlet {
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     
-    String userid = getParameter(request, "userid","");
-    if(userid == null){
-        throw new IllegalArgumentException("userid cannot be empty");
+    String userId = getParameter(request, "userId","");
+    if(userId == null){
+      response.setStatus(400);
+      response.getWriter().println("userId cannot be empty");
     }
+
     List<Event> eventList = new ArrayList<>();
-    Query query = new Query("event");
-    // .addSort("timestamp", SortDirection.ASCENDING);
+    Query query = new Query("Event");
     DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
     PreparedQuery results = datastore.prepare(query);
 
     for (Entity entity : results.asIterable()) {
-      if(entity.getProperty("userid") == userid){
+      response.setStatus(400);
+      if((String) entity.getProperty("userId") == userId){
         String title = (String) entity.getProperty("title");
         Date startTime = (Date) entity.getProperty("startTime");
         Date endTime = (Date) entity.getProperty("endTime");
         String content = (String) entity.getProperty("content");
 
-        Event event = new Event(userid, title, startTime, endTime, content);
+        Event event = new Event(userId, title, startTime, endTime, content);
         eventList.add(event);
       }
     }
@@ -82,41 +84,73 @@ public class EventServlet extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
-    String userid = getParameter(request, "userid", "");
+    String userId = getParameter(request, "userId", "");
     String title = getParameter(request, "title", ""); 
     String startTimeString = getParameter(request, "startTime", ""); 
     String endTimeString = getParameter(request, "endTime", "");
     String content = getParameter(request, "content", "");
     
-    Event event = new Event(userid, title, startTimeString, endTimeString, content);
+    if (userId == null) {
+      response.setStatus(400);
+      response.getWriter().println("userId cannot be null");
+    }
+    else if (title == null) {
+      response.setStatus(400);
+      response.getWriter().println("title cannot be null");
+    }
+    else if (startTimeString == null || endTimeString == null){
+      response.setStatus(406);
+      response.getWriter().println("Time cannot be null");
+    }
 
-    Entity eventEntity = new Entity("Event");
-    eventEntity.setProperty("userid", event.getUserid());
-    eventEntity.setProperty("title", event.getTitle());
-    eventEntity.setProperty("startTime", event.getStartTime());
-    eventEntity.setProperty("endTime", event.getEndTime());
-    eventEntity.setProperty("content", event.getContent());
+    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
+    Date startTime = new Date();
+    Date endTime = new Date();
+    try{
+      startTime = formatter.parse(startTimeString); 
+      endTime = formatter.parse(endTimeString);
+    }
+    catch(Exception e){
+      response.setStatus(406);
+      response.getWriter().println("Date format error");
+    }
 
-    DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-    datastore.put(eventEntity);
+    String id = "";
+    if (startTime.after(endTime)) {
+      response.setStatus(406);
+      response.getWriter().println("endTime cannot be before startTime");
+    }
+    else{
+      Event event = new Event(userId, title, startTime, endTime, content);
 
-    int id = (int) eventEntity.getKey().getId();
+      Entity eventEntity = new Entity("Event");
+      eventEntity.setProperty("userId", event.getuserId());
+      eventEntity.setProperty("title", event.getTitle());
+      eventEntity.setProperty("startTime", event.getStartTime());
+      eventEntity.setProperty("endTime", event.getEndTime());
+      eventEntity.setProperty("content", event.getContent());
 
-    Gson gson = new Gson();
-    String retJson = gson.toJson(id);
+      DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+      datastore.put(eventEntity);
+      id = String.valueOf(eventEntity.getKey().getId());
 
-    response.setContentType("application/json;");
-    response.getWriter().println(retJson);
+      Gson gson = new Gson();
+      String retJson = gson.toJson(id);
+
+      response.setContentType("application/json;");
+      response.getWriter().println(retJson);
+    }
   }
   
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
     DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-    String userid = getParameter(request, "userid", "");
-    int eventid = Integer.parseInt(getParameter(request, "eventid", ""));
+    String userId = getParameter(request, "userId", "");
+    int eventId = Integer.parseInt(getParameter(request, "eventId", ""));
     
-    Key eventKey = KeyFactory.createKey("Event", eventid);
+    Key eventKey = KeyFactory.createKey("Event", eventId);
     datastore.delete(eventKey);
+
 
   }
   private String getParameter(HttpServletRequest request, String name, String defaultValue) {
