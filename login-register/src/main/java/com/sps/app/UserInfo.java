@@ -11,3 +11,4 @@ public class UserInfo {
       this.username = username;
     }
   }
+

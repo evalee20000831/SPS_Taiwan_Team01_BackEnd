@@ -6,27 +6,6 @@ derived_file_type:
 auto_id_policy: default
 api_version: 'user_defined'
 handlers:
-- url: (/.*/)
-  static_files: __static__\1index.html
-  upload: __NOT_USED__
-  require_matching_file: True
-  login: optional
-  secure: optional
-  expiration: 0s
-- url: (/)
-  static_files: __static__\1index.html
-  upload: __NOT_USED__
-  require_matching_file: True
-  login: optional
-  secure: optional
-  expiration: 0s
-- url: (/.*)
-  static_files: __static__\1
-  upload: __NOT_USED__
-  require_matching_file: True
-  login: optional
-  secure: optional
-  expiration: 0s
 - url: /
   script: unused
   login: optional

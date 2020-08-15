@@ -45,6 +45,7 @@ public class RegisterServlet extends HttpServlet {
    * @param request (HttpServletRequest)
    * @param response (HttpServletResponse) 
   */ 
+  @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException{
     String username = request.getParameter("username"); // unique
     String password = request.getParameter("password"); 
@@ -72,14 +73,15 @@ public class RegisterServlet extends HttpServlet {
       long userIdEntity = 0; 
       for (Entity entity : results.asIterable()) {
         userIdEntity = entity.getKey().getId(); // json 
-        
       }
       String userIdEntityString = Long.toString(userIdEntity); 
       
       UserInfo userAccount = new UserInfo (userIdEntityString, email, username); 
       json = convertToJson(userAccount); 
+      response.setStatus(201); 
     }
-    response.setContentType("application/json;");
+    
+    response.setContentType("application/json; charset=UTF-8");
     response.getWriter().println(json); 
   }
 
