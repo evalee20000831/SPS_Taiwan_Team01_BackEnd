@@ -32,13 +32,15 @@ import java.util.List;
  * creates page for user login and has following 4 methods 
  * - doPost 
  * - checkExistUser
- * - getUsername 
+ * - checkPassword 
  * - convertToJson
+ * - doDelete
  */ 
 @WebServlet("/login")
 public class LoginServlet extends HttpServlet {
   private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService(); 
   String json = null; // initialization for json 
+  Key userId = null; // for deletion 
   
   /**
    * ask user to login 
@@ -56,7 +58,7 @@ public class LoginServlet extends HttpServlet {
       // 404 indicates user not found 
       response.setStatus(404); 
       
-    } else if (getUsername(request, username, password)){
+    } else if (checkPassword(request, username, password)){
       // if password is incorrect 
       System.out.println("PasswordError"); 
       // 400 indicates the request sent by the client was syntactically incorrect.
@@ -102,7 +104,7 @@ public class LoginServlet extends HttpServlet {
    * @param password (String) entered password 
    * @return (boolean) false if the password does not match & true if they match; 
    */
-  private boolean getUsername(HttpServletRequest request, String username, String password){
+  private boolean checkPassword(HttpServletRequest request, String username, String password){
     Filter usernameFliter = new Query.FilterPredicate ("username", Query.FilterOperator.EQUAL, username); 
     Filter passwordFliter = new Query.FilterPredicate("password", Query.FilterOperator.EQUAL, password); 
     // combine two fliters together 
@@ -114,17 +116,18 @@ public class LoginServlet extends HttpServlet {
     String passwordEntity = null; 
     long userIdEntity = 0; // json 
     String emailEntity = null; // json
-
+    
     for (Entity entity : results.asIterable()) {
       nameEntity = (String) entity.getProperty("username");
       passwordEntity = (String) entity.getProperty("password");
 
-      // prepare for json. 
+      // prepare for json 
       // add to collection only when password and username are checked (below if-else)
-      userIdEntity = entity.getKey().getId(); 
+      userId = entity.getKey(); // for deletion 
+      userIdEntity = userId.getId(); 
       emailEntity = (String) entity.getProperty("email"); 
     }
-
+    
     // nothing will be given if entity does not match to anything 
     if (passwordEntity == null){
       // given password does not match the password in database 
@@ -135,7 +138,6 @@ public class LoginServlet extends HttpServlet {
     }
     // password is correct  
     String userIdEntityString = Long.toString(userIdEntity); 
-     
     UserInfo userAccount = new UserInfo (userIdEntityString, emailEntity, nameEntity); 
     // convert accountInfo to json string 
     json = convertToJson(userAccount); 
@@ -151,47 +153,37 @@ public class LoginServlet extends HttpServlet {
     Gson gson = new Gson();
     String json = gson.toJson(userInfo);
     return json;
-  } 
+  }
 
-//   @Override 
-//   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-//     
-//     PrintWriter writeOut = response.getWriter();
-//     writeOut.println("<h1>Login</h1>");
-//     response.setContentType("text/html"); 
-//     // ask for login info (Post method) 
-//     writeOut.println("<form method=\"DELETE\" action=\"/login\">");
-//     writeOut.println("<p>username = </p>"); 
-//     writeOut.println("<input name=\"username\"/>"); // username 
-//     writeOut.println("<p>password = </p>");
-//     writeOut.println("<input name=\"password\"/>"); // password 
-//     writeOut.println("<br/>");
-//     writeOut.println("<button>Submit</button>");
-//     writeOut.println("</form>"); 
-//     writeOut.println("<p>Register <a href=/register>here</a>.</p>");
-//   }
-
+  /**
+   * delete a user 
+   * @param request (HttpServletRequest) 
+   * @param response (HttpServletResponse) 
+   */ 
   @Override
-  public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException{
+  public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException{  
     String username = request.getParameter("username"); // request for username 
     String password = request.getParameter("password"); // request for password 
-
+    response.setContentType("application/json; charset=UTF-8");
+    
     if (checkExistUser(request, username)){
       // username cannot find in database  
       System.out.println("user does not exist"); 
+      response.getWriter().println(json); 
       // 404 indicates user not found 
       response.setStatus(404); 
-    } else if (getUsername(request, username, password)){
+    } else if (checkPassword(request, username, password)){
       // if password is incorrect 
       System.out.println("PasswordError"); 
+      response.getWriter().println(json); 
       // 400 indicates the request sent by the client was syntactically incorrect.
       response.setStatus(401); 
-    } else 
-
-    // login successfully  
-    // Send the JSON as the response 
-    response.setContentType("application/json;");
-    response.getWriter().println(json); 
+    } else { 
+      datastore.delete(userId); 
+      System.out.println("userId " + userId + " is deleted"); 
+      // 204 indicates the server successfully processed the request, and is not returning any content. 
+      response.setStatus(204); 
+    }
   }
 }
 
