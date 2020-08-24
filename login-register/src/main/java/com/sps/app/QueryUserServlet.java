@@ -22,9 +22,7 @@ import java.io.PrintWriter; // Write
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-//UserInfo.java 
-import com.sps.app.servlets.UserInfo; 
+import javax.servlet.http.HttpServletResponse; 
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,13 +34,13 @@ public class QueryUserServlet extends HttpServlet {
   public DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();  
   String json = null; // initialization for json 
   
-  private class QueryInfo {
-    private ArrayList<String> accessListEntity; 
-    private ArrayList<String> usernameList; 
+  private class Friend {
+    private String userId; 
+    private String username; 
 
-    private QueryInfo (ArrayList<String> accessListEntity, ArrayList<String> usernameList){
-      this.accessListEntity = accessListEntity; 
-      this.usernameList = usernameList; 
+    private Friend (String userId, String username){
+      this.userId = userId; 
+      this.username = username; 
     }
   }
 
@@ -79,8 +77,9 @@ public class QueryUserServlet extends HttpServlet {
     try{
       Entity entity = datastore.get(key);
       ArrayList<String> accessListEntity = (ArrayList<String>) entity.getProperty("accessList"); 
-      // find all username with given userId in accessList 
-      ArrayList<String> usernameList = new ArrayList<String>(); 
+      ArrayList<Friend> friendList = new ArrayList<Friend>(); 
+      Friend userIdAndUsername = new Friend(null, null); 
+
       if (accessListEntity==null){
         accessListEntity = new ArrayList<String>(); 
         System.out.println("AccessList is empty"); 
@@ -90,13 +89,12 @@ public class QueryUserServlet extends HttpServlet {
           if ("404".equals(usernames)){
             accessListEntity.remove(accessListEntity.get(i)); 
           } else {
-            usernameList.add(usernames); 
+            userIdAndUsername = new Friend (accessListEntity.get(i), usernames); // userId and username 
+            friendList.add(userIdAndUsername); 
           }
         }
       }
-      Collections.reverse(usernameList);
-      QueryInfo userIdAndUsername = new QueryInfo(accessListEntity, usernameList); 
-      json = convertToJson(userIdAndUsername); 
+      json = convertToJson(friendList); 
       return "200"; 
     } catch (EntityNotFoundException e){
       // should never happen 
@@ -120,7 +118,7 @@ public class QueryUserServlet extends HttpServlet {
     }
   }
 
-  private String convertToJson(QueryInfo userIdAndUsername) {
+  private String convertToJson(ArrayList<Friend> userIdAndUsername) {
     Gson gson = new Gson();
     String json = gson.toJson(userIdAndUsername);
     return json;

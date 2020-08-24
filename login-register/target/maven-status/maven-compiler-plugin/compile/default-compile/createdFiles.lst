@@ -4,4 +4,4 @@ com/sps/app/servlets/QueryUserServlet.class
 com/sps/app/servlets/UserInfo.class
 com/sps/app/servlets/QueryUserServlet$1.class
 com/sps/app/servlets/LoginServlet.class
-com/sps/app/servlets/QueryUserServlet$QueryInfo.class
+com/sps/app/servlets/QueryUserServlet$Friend.class
