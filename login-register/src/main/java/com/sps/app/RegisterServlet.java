@@ -65,6 +65,11 @@ public class RegisterServlet extends HttpServlet {
       taskEntity.setProperty("username", username); 
       taskEntity.setProperty("password", password); 
       taskEntity.setProperty("email", email); 
+      //
+      // ArrayList<ArrayList<String>>  accessList = new ArrayList<ArrayList<String>> (); 
+      ArrayList<String>  accessList = new ArrayList<String> (); 
+      taskEntity.setProperty("accessList", accessList); 
+      // 
       datastore.put(taskEntity); 
 
       // get the user id for Json 
@@ -83,6 +88,10 @@ public class RegisterServlet extends HttpServlet {
     
     response.setContentType("application/json; charset=UTF-8");
     response.getWriter().println(json); 
+    response.setHeader("Access-Control-Allow-Origin", "*"); 
+    response.setHeader("Access-Control-Allow-Credentials", "true"); 
+    response.setHeader("Access-Control-Allow-Headers", "Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS"); 
   }
 
   /**

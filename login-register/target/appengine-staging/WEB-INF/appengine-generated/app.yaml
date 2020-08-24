@@ -22,7 +22,19 @@ handlers:
   script: unused
   login: optional
   secure: optional
+- url: /query
+  script: unused
+  login: optional
+  secure: optional
+- url: /add
+  script: unused
+  login: optional
+  secure: optional
 - url: /register
+  script: unused
+  login: optional
+  secure: optional
+- url: /user
   script: unused
   login: optional
   secure: optional
