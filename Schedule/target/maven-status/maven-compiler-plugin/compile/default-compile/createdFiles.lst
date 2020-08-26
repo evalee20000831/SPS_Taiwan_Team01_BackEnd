@@ -1,2 +1,4 @@
+BlobstoreUploadUrlServlet.class
 com/sps/app/Event.class
 com/sps/app/servlets/EventServlet.class
+ImageServlet.class

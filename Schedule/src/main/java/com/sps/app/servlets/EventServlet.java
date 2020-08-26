@@ -1,17 +1,3 @@
-// Copyright 2019 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package com.sps.app.servlets;
 
 import java.io.IOException;
@@ -26,8 +12,6 @@ import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.Key;
-import com.google.appengine.api.datastore.KeyFactory;
-import com.google.appengine.api.datastore.KeyRange;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.SortDirection;
@@ -38,19 +22,20 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.Date;
+import java.util.Calendar;
 import java.util.Locale;
 import java.text.*;
 import com.sps.app.Event;
 import java.lang.*;
 
-@WebServlet("/")
+@WebServlet("/event")
 public class EventServlet extends HttpServlet {
   private DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     
-    String userId = getParameter(request, "userId","");
+    String userId = request.getParameter("userId");
     if(userId == null){
       response.setStatus(400);
       response.getWriter().println("userId cannot be empty");
@@ -69,15 +54,24 @@ public class EventServlet extends HttpServlet {
         String startTime = (String)entity.getProperty("startTime");
         String endTime = (String)entity.getProperty("endTime");
         String content = (String) entity.getProperty("content");
+        String imgUrl = (String) entity.getProperty("imgUrl");
 
         Event event = new Event(userId, title, startTime, endTime, content);
+        event.setEventId(String.valueOf(entity.getKey().getId()));
+        event.setImgUrl(imgUrl);
+
         eventList.add(event);
       }
     }
 
     String json = convertToJsonUsingGson(eventList);
     response.setContentType("application/json; charset=UTF-8");
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+    response.setHeader("Access-Control-Allow-Headers", "Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     response.getWriter().println(json);
+
   }
     
   private String convertToJsonUsingGson(List<Event> eventList) {
@@ -89,11 +83,11 @@ public class EventServlet extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
-    String userId = getParameter(request, "userId", "");
-    String title = getParameter(request, "title", ""); 
-    String startTimeString = getParameter(request, "startTime", ""); 
-    String endTimeString = getParameter(request, "endTime", "");
-    String content = getParameter(request, "content", "");
+    String userId = request.getParameter("userId");
+    String title = request.getParameter("title"); 
+    String startTimeString = request.getParameter("startTime"); 
+    String endTimeString = request.getParameter("endTime");
+    String content = request.getParameter("content");
     
     if (userId == "") {
       response.setStatus(400);
@@ -123,8 +117,7 @@ public class EventServlet extends HttpServlet {
       response.getWriter().println("Date format error");
       return;
     }
-
-    String id = "";
+    
     if (startTime.after(endTime)) {
       response.setStatus(406);
       response.getWriter().println("endTime cannot be before startTime");
@@ -132,7 +125,6 @@ public class EventServlet extends HttpServlet {
     }
     else{
       Event event = new Event(userId, title, startTimeString, endTimeString, content);
-
       Entity eventEntity = new Entity("Event");
       eventEntity.setProperty("userId", event.getuserId());
       eventEntity.setProperty("title", event.getTitle());
@@ -141,22 +133,31 @@ public class EventServlet extends HttpServlet {
       eventEntity.setProperty("content", event.getContent());
 
       datastore.put(eventEntity);
-      id = String.valueOf(eventEntity.getKey().getId());
+      String id = String.valueOf(eventEntity.getKey().getId());
+      event.setEventId(id);
 
       Gson gson = new Gson();
       String retJson = gson.toJson(id);
 
       response.setContentType("application/json; charset=UTF-8");
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Credentials", "true");
+      response.setHeader("Access-Control-Allow-Headers", "Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token");
+      response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
       response.getWriter().println(retJson);
     }
   }
   
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    String userId = getParameter(request, "userId", "");
+    String userId = request.getParameter("userId");
     Long eventId = Long.parseLong(request.getParameter("eventId"));
     
     response.setContentType("application/json; charset=UTF-8");
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+    response.setHeader("Access-Control-Allow-Headers", "Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token");
+    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 
     Filter userIdFilter = new Query.FilterPredicate ("userId", Query.FilterOperator.EQUAL, userId);
     Query query = new Query("Event").setFilter(userIdFilter);
@@ -164,7 +165,6 @@ public class EventServlet extends HttpServlet {
     Key eventKey = null;
 
     for (Entity entity : results.asIterable()) {
-      response.getWriter().println(entity.getKey().getId());
       if(eventId == entity.getKey().getId()){
         eventKey = entity.getKey();
       }
@@ -175,14 +175,8 @@ public class EventServlet extends HttpServlet {
     }
     else{
         datastore.delete(eventKey);
-        response.setStatus(204);
+        response.setStatus(200);
     } 
   }
-  private String getParameter(HttpServletRequest request, String name, String defaultValue) {
-    String value = request.getParameter(name);
-    if (value == null) {
-      return defaultValue;
-    }
-    return value;
-  }
+  
 }

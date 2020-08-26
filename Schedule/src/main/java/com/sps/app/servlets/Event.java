@@ -13,21 +13,17 @@ public class Event {
     private String startTime;
     private String endTime;
     private String content;
+    private String eventId;
+    private String imgUrl;
 
   /**
    * Creates a new event.
    *
+   * @param userId user's Id. Must be non-null.
    * @param title The human-readable name for the event. Must be non-null.
    * @param timestamp The time when the event takes place. Must be non-null.
    * @param content The task content. Can be null.
    */
-//   public Event(String userId, String title, Date startTime, Date endTime, String content){
-//     this.startTime = startTime;
-//     this.endTime = endTime;
-//     this.userId = userId;
-//     this.title = title;
-//     this.content = content;
-//   }
   public Event(String userId, String title, String startTime, String endTime, String content){
     this.startTime = startTime;
     this.endTime = endTime;
@@ -45,16 +41,18 @@ public class Event {
     return userId;
   }
   public String getStartTime() {
-    // SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");  
-    // String strStartDate = formatter.format(this.startTime);
     return startTime;
   }
   public String getEndTime() {
-    // SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");  
-    // String strEndDate = formatter.format(this.endTime);
     return endTime;
   }
   public String getContent() {
     return content;
+  }
+  public void setEventId(String eventId) {
+    this.eventId = eventId;
+  }
+  public void setImgUrl(String imgUrl) {
+    this.imgUrl = imgUrl;
   }
 }
