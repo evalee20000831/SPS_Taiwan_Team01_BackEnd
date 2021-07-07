@@ -1,0 +1,49 @@
+runtime: java8
+module: 'backend'
+inbound_services:
+- warmup
+derived_file_type:
+- java_precompiled
+auto_id_policy: default
+api_version: 'user_defined'
+handlers:
+- url: /
+  script: unused
+  login: optional
+  secure: optional
+- url: /.*/
+  script: unused
+  login: optional
+  secure: optional
+- url: /_ah/.*
+  script: unused
+  login: optional
+  secure: optional
+- url: /event
+  script: unused
+  login: optional
+  secure: optional
+- url: /login
+  script: unused
+  login: optional
+  secure: optional
+- url: /query
+  script: unused
+  login: optional
+  secure: optional
+- url: /image
+  script: unused
+  login: optional
+  secure: optional
+- url: /add
+  script: unused
+  login: optional
+  secure: optional
+- url: /register
+  script: unused
+  login: optional
+  secure: optional
+- url: /blobstore-upload-url
+  script: unused
+  login: optional
+  secure: optional
